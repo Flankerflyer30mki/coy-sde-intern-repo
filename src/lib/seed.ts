@@ -11,9 +11,10 @@ type SeedProfile = {
   swipedMe?: "like" | "pass";
 };
 
-// Generated cartoon avatars: placeholder images without using real people's photos.
+// Generated illustrated faces: placeholder images without using real people's photos.
+// The "-neutral" style is face-only (no hair or makeup), so avatars don't imply a gender.
 const avatar = (seed: string) =>
-  `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(seed)}&backgroundColor=ffd5dc,ffdfbf,d1d4f9,c0aede,b6e3f4`;
+  `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(seed)}&backgroundColor=ffd5dc,ffdfbf,d1d4f9,c0aede,b6e3f4`;
 
 // The likers are spread through the list on purpose: the feed is ordered by
 // id, and a cluster of likers at the front would itself leak who liked you.

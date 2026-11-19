@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { seed } from "./seed";
@@ -52,15 +53,22 @@ export function openDb(file: string): DB {
   return db;
 }
 
-// COY_DB_FILE lets tests point the API at a throwaway database (e.g. ":memory:").
-const DB_FILE = process.env.COY_DB_FILE ?? path.join(process.cwd(), "data", "coy.db");
+// The database lives OUTSIDE the project folder on purpose. `next dev` watches
+// the project for file changes, and SQLite updates its -wal/-shm files on every
+// query, which the watcher mistakes for code edits: the page then reloads in an
+// endless loop. COY_DB_FILE overrides the location (tests use ":memory:").
+export const DB_FILE =
+  process.env.COY_DB_FILE ?? path.join(os.homedir(), ".coy-discover", "coy.db");
 
 // Reuse one connection across requests. Stored on globalThis so Next.js
 // hot-reloading in dev doesn't open a new connection on every code change.
 const globalForDb = globalThis as unknown as { coyDb?: DB };
 
 export function getDb(): DB {
-  globalForDb.coyDb ??= openDb(DB_FILE);
+  if (!globalForDb.coyDb) {
+    globalForDb.coyDb = openDb(DB_FILE);
+    console.log(`[coy] database: ${DB_FILE}`);
+  }
   return globalForDb.coyDb;
 }
 
