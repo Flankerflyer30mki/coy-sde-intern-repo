@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { CURRENT_USER_ID as ME, openDb, type DB } from "./db";
-import { getFeed, getMatches, recordSwipe, SwipeError } from "./discover";
+import { getFeed, getMatches, recordSwipe, resetSwipes, SwipeError } from "./discover";
 import { SEED_PROFILES } from "./seed";
 
 const likedMe = SEED_PROFILES.filter((p) => p.swipedMe === "like").map((p) => p.id);
@@ -189,6 +189,34 @@ describe("GET /matches logic", () => {
     recordSwipe(db, ME, likedMe[0], "like");
     const [m] = getMatches(db, ME);
     expect(Number.isNaN(Date.parse(m.matchedAt))).toBe(false);
+  });
+});
+
+describe("demo reset (Start over)", () => {
+  it("brings every profile back and clears matches", () => {
+    for (const p of getFeed(db, ME)) recordSwipe(db, ME, p.id, likedMe.includes(p.id) ? "like" : "pass");
+    expect(getFeed(db, ME)).toEqual([]);
+    expect(getMatches(db, ME)).toHaveLength(likedMe.length);
+
+    expect(resetSwipes(db, ME)).toBe(SEED_PROFILES.length); // one row per swipe removed
+    expect(getFeed(db, ME)).toHaveLength(SEED_PROFILES.length);
+    expect(getMatches(db, ME)).toEqual([]);
+  });
+
+  it("keeps other people's swipes, so the same matches can happen again", () => {
+    recordSwipe(db, ME, likedMe[0], "like");
+    resetSwipes(db, ME);
+    expect(recordSwipe(db, ME, likedMe[0], "like").match).toBe(true);
+    // The seeded passes survive too: liking someone who passed is still not a match.
+    expect(recordSwipe(db, ME, passedMe[0], "like")).toEqual({ match: false });
+  });
+
+  it("only removes the given user's swipes", () => {
+    const { before } = db.prepare("SELECT COUNT(*) AS before FROM swipes WHERE swiper_id <> ?").get(ME) as { before: number };
+    recordSwipe(db, ME, neutral[0], "like");
+    resetSwipes(db, ME);
+    const { after } = db.prepare("SELECT COUNT(*) AS after FROM swipes WHERE swiper_id <> ?").get(ME) as { after: number };
+    expect(after).toBe(before);
   });
 });
 

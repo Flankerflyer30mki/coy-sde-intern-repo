@@ -7,6 +7,7 @@ import {
   ApiError,
   fetchFeed,
   postSwipe,
+  resetDemo,
   type Profile,
   type SwipeAction,
 } from "@/lib/api-client";
@@ -71,6 +72,19 @@ export default function DiscoverDeck() {
 
   const closeMatch = useCallback(() => setMatch(null), []);
 
+  // DEMO ONLY: "Start over" erases the user's swipes and reloads the full deck.
+  const [resetting, setResetting] = useState(false);
+  const startOver = useCallback(() => {
+    setResetting(true);
+    resetDemo()
+      .then(() => {
+        setLoadState("loading");
+        loadFeed();
+      })
+      .catch(() => setToast("Couldn't start over. Please try again."))
+      .finally(() => setResetting(false));
+  }, [loadFeed]);
+
   if (loadState === "loading") {
     return (
       <div className="flex flex-1 items-center justify-center" aria-live="polite">
@@ -105,7 +119,7 @@ export default function DiscoverDeck() {
     <div className="flex flex-1 flex-col px-4 pb-4">
       <div className="relative flex-1">
         {isEmpty ? (
-          <EmptyState />
+          <EmptyState onStartOver={startOver} resetting={resetting} />
         ) : (
           visible
             .map((profile, i) => (
@@ -175,7 +189,7 @@ function ActionButton({
   );
 }
 
-function EmptyState() {
+function EmptyState({ onStartOver, resetting }: { onStartOver: () => void; resetting: boolean }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
       <span className="text-5xl" aria-hidden>
@@ -186,6 +200,18 @@ function EmptyState() {
       <Link href="/discover/matches" className="mt-2 rounded-full bg-brand px-5 py-2 font-semibold text-white">
         See your matches
       </Link>
+
+      {/* DEMO ONLY: lets a reviewer replay the demo without touching the terminal. */}
+      <div className="mt-6 flex flex-col items-center gap-1 border-t border-zinc-100 pt-5">
+        <button
+          onClick={onStartOver}
+          disabled={resetting}
+          className="rounded-full border-2 border-zinc-300 px-5 py-2 font-semibold text-zinc-700 transition hover:border-zinc-400 disabled:opacity-50"
+        >
+          {resetting ? "Starting over…" : "↺ Start over"}
+        </button>
+        <p className="text-xs text-zinc-400">Demo only: clears your swipes and matches</p>
+      </div>
     </div>
   );
 }

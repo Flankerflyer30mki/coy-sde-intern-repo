@@ -129,6 +129,18 @@ export function recordSwipe(
   })();
 }
 
+/**
+ * DEMO ONLY: erases the user's own swipes so the demo can be replayed.
+ *
+ * Other people's swipes (the seeded "already liked you" data) are kept, so the
+ * same matches can happen again. Matches disappear on their own because they
+ * are derived from swipes. A real app would not offer this: it would undo the
+ * rule that a swiped profile never appears again.
+ */
+export function resetSwipes(db: DB, userId: string): number {
+  return db.prepare("DELETE FROM swipes WHERE swiper_id = ?").run(userId).changes;
+}
+
 /** Mutual matches only: both sides liked each other. Newest first. */
 export function getMatches(db: DB, userId: string): Match[] {
   const rows = db

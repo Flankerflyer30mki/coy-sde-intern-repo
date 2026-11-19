@@ -10,6 +10,7 @@ const { SEED_PROFILES } = await import("@/lib/seed");
 const feedRoute = await import("./feed/route");
 const swipeRoute = await import("./swipe/route");
 const matchesRoute = await import("./matches/route");
+const resetRoute = await import("./reset/route");
 
 const liker = SEED_PROFILES.find((p) => p.swipedMe === "like")!.id;
 const neutral = SEED_PROFILES.find((p) => !p.swipedMe)!.id;
@@ -99,5 +100,22 @@ describe("GET /api/matches", () => {
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     const { matches } = await res.json();
     expect(matches.map((m: { profile: { id: string } }) => m.profile.id)).toEqual([liker]);
+  });
+});
+
+describe("POST /api/reset (demo only)", () => {
+  it("brings swiped profiles back and clears matches", async () => {
+    await swipe({ profileId: liker, action: "like" });
+    await swipe({ profileId: neutral, action: "pass" });
+
+    const res = await resetRoute.POST();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(await res.json()).toEqual({ reset: true, removedSwipes: 2 });
+
+    const { profiles } = await (await feedRoute.GET()).json();
+    expect(profiles).toHaveLength(SEED_PROFILES.length);
+    const { matches } = await (await matchesRoute.GET()).json();
+    expect(matches).toEqual([]);
   });
 });

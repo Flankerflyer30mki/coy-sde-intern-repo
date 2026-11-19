@@ -22,8 +22,8 @@ Open **http://localhost:3000/discover**. It's built mobile-first, so it looks be
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start the app at http://localhost:3000 |
-| `npm test` | Run the 40 backend tests |
-| `npm run db:reset` | Delete all swipes and re-seed (restart the dev server afterwards) |
+| `npm test` | Run the 44 backend tests |
+| `npm run db:reset` | Delete the whole database and re-seed (restart the dev server afterwards). For a quick replay, use the in-app **Start over** button instead. |
 | `npm run build && npm start` | Production build |
 
 No accounts, keys or external services are needed. The database is created and seeded automatically on the first request.
@@ -38,6 +38,7 @@ No accounts, keys or external services are needed. The database is created and s
 4. Tap **💘 Matches** to see your mutual matches.
 5. **Reload the page.** Swiped profiles never come back, and matches stay.
 6. Swipe through everyone to reach the **"You're all caught up"** empty state.
+7. Tap **↺ Start over** (demo only) to clear your swipes and matches and run it again from the first card.
 
 Seeded profiles that have already liked you (so a demo can produce matches): **Rohan, Sana, Riya, Dev, Aarav, Karan, Myra, Ishaan** (p02, p07, p11, p16, p20, p24, p29, p32). Three profiles have passed on you, and the other 21 haven't swiped. Nothing in the app tells you which is which. That's the point.
 
@@ -104,6 +105,13 @@ Mutual matches, newest first.
 { "matches": [ { "profile": { … }, "matchedAt": "2026-11-19T10:15:32.022Z" } ] }
 ```
 
+### `POST /api/reset` (demo only)
+Erases the user's own swipes so the demo can be replayed. This is what the **Start over** button calls. Other people's seeded swipes are kept, so the same matches can happen again.
+```json
+{ "reset": true, "removedSwipes": 32 }
+```
+A real app wouldn't expose this, because it undoes "a swiped profile never appears again". It's here only so reviewers can rerun the demo without the terminal.
+
 Try it:
 ```bash
 curl localhost:3000/feed
@@ -162,10 +170,10 @@ These rules have their own tests. For example, one test makes *every* profile li
 npm test
 ```
 
-**40 tests**, each starting from a fresh in-memory database (the persistence and upgrade tests use a temporary file instead):
+**44 tests**, each starting from a fresh in-memory database (the persistence and upgrade tests use a temporary file instead):
 
-- **Logic (24):** seed data, feed filtering, matching, every privacy rule above, idempotent retries, rejected input, persistence across reopening the database, and upgrading an older database.
-- **API routes (16):** status codes, error codes, malformed and `null` JSON bodies, response shapes, and the `no-store` header.
+- **Logic (27):** seed data, feed filtering, matching, every privacy rule above, idempotent retries, rejected input, persistence across reopening the database, upgrading an older database, and the demo reset (only the user's own swipes are removed).
+- **API routes (17):** status codes, error codes, malformed and `null` JSON bodies, response shapes, the `no-store` header, and the reset endpoint.
 
 Beyond unit tests, I ran the app in headless Chrome at phone size: dragging, buttons, arrow keys, the match screen, reload persistence, offline rollback, double clicks and the empty state. That pass found and fixed two real bugs: an error message that covered the Like/Pass buttons, and the dev-server reload loop described above.
 

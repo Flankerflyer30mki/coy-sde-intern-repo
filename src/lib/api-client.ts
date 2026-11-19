@@ -32,6 +32,11 @@ export async function fetchMatches(): Promise<Match[]> {
   return (await request<{ matches: Match[] }>("/api/matches")).matches;
 }
 
+/** DEMO ONLY: erase the user's swipes so the demo starts over. */
+export async function resetDemo(): Promise<void> {
+  await request<{ reset: true }>("/api/reset", { method: "POST" });
+}
+
 export function postSwipe(profileId: string, action: SwipeAction): Promise<SwipeResult> {
   return request<SwipeResult>("/api/swipe", {
     method: "POST",
