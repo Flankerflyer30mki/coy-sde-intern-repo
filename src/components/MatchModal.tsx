@@ -59,8 +59,12 @@ export default function MatchModal({ profile, onClose }: Props) {
           >
             Keep swiping
           </button>
+          {/* Close the popup before leaving. Next.js keeps the Discover page's state
+              alive while you're on Matches (React Activity), so without this the
+              popup would reappear when you come back. */}
           <Link
             href="/discover/matches"
+            onClick={onClose}
             className="rounded-full border-2 border-white/80 py-3 font-semibold text-white active:scale-[0.98]"
           >
             See your matches
