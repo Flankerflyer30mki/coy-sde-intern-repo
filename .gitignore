@@ -9,6 +9,9 @@
 Thumbs.db
 CLAUDE.md
 
+# private notes: decisions log and evals, never published
+/private/
+
 # dependencies
 /node_modules
 
