@@ -11,6 +11,8 @@ export type Profile = {
   bio: string;
   location: string;
   interests: string[];
+  /** Hinge-style prompt, e.g. { question: "A perfect Sunday", answer: "…" }. */
+  prompt: { question: string; answer: string };
 };
 
 export type Match = { profile: Profile; matchedAt: string };
@@ -30,9 +32,14 @@ export class SwipeError extends Error {
   }
 }
 
-type ProfileRow = Omit<Profile, "interests"> & { interests: string };
+type ProfileRow = Omit<Profile, "interests" | "prompt"> & {
+  interests: string;
+  prompt_question: string;
+  prompt_answer: string;
+};
 
-const PROFILE_COLUMNS = "p.id, p.name, p.age, p.photo, p.bio, p.location, p.interests";
+const PROFILE_COLUMNS =
+  "p.id, p.name, p.age, p.photo, p.bio, p.location, p.interests, p.prompt_question, p.prompt_answer";
 
 function toProfile(row: ProfileRow): Profile {
   return {
@@ -43,6 +50,7 @@ function toProfile(row: ProfileRow): Profile {
     bio: row.bio,
     location: row.location,
     interests: JSON.parse(row.interests) as string[],
+    prompt: { question: row.prompt_question, answer: row.prompt_answer },
   };
 }
 

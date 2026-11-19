@@ -17,7 +17,9 @@ const SCHEMA = `
     photo      TEXT    NOT NULL,
     bio        TEXT    NOT NULL,
     location   TEXT    NOT NULL,   -- city or college
-    interests  TEXT    NOT NULL    -- JSON array of strings
+    interests  TEXT    NOT NULL,   -- JSON array of strings
+    prompt_question TEXT NOT NULL DEFAULT '',   -- e.g. "A perfect Sunday"
+    prompt_answer   TEXT NOT NULL DEFAULT ''
   );
 
   -- One row per (swiper, target). The primary key makes it impossible to
@@ -49,8 +51,25 @@ export function openDb(file: string): DB {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
+  addMissingColumns(db);
   seed(db);
   return db;
+}
+
+/**
+ * Tiny migration: databases created before the prompt fields existed get the
+ * columns added (seed() then fills them in). Without this, an old local
+ * database would crash on the first query.
+ */
+function addMissingColumns(db: DB): void {
+  const columns = new Set(
+    (db.prepare("PRAGMA table_info(profiles)").all() as { name: string }[]).map((c) => c.name),
+  );
+  for (const column of ["prompt_question", "prompt_answer"]) {
+    if (!columns.has(column)) {
+      db.exec(`ALTER TABLE profiles ADD COLUMN ${column} TEXT NOT NULL DEFAULT ''`);
+    }
+  }
 }
 
 // The database lives OUTSIDE the project folder on purpose. `next dev` watches
@@ -60,20 +79,29 @@ export function openDb(file: string): DB {
 export const DB_FILE =
   process.env.COY_DB_FILE ?? path.join(os.homedir(), ".coy-discover", "coy.db");
 
+// Bump when the schema changes. A connection cached by an older version of the
+// code (dev hot reload) is then reopened, which runs addMissingColumns().
+const SCHEMA_VERSION = 2;
+
 // Reuse one connection across requests. Stored on globalThis so Next.js
 // hot-reloading in dev doesn't open a new connection on every code change.
-const globalForDb = globalThis as unknown as { coyDb?: DB };
+const globalForDb = globalThis as unknown as {
+  coyDbCache?: { db: DB; version: number };
+};
 
 export function getDb(): DB {
-  if (!globalForDb.coyDb) {
-    globalForDb.coyDb = openDb(DB_FILE);
-    console.log(`[coy] database: ${DB_FILE}`);
-  }
-  return globalForDb.coyDb;
+  const cached = globalForDb.coyDbCache;
+  if (cached?.version === SCHEMA_VERSION) return cached.db;
+
+  cached?.db.close();
+  const db = openDb(DB_FILE);
+  globalForDb.coyDbCache = { db, version: SCHEMA_VERSION };
+  console.log(`[coy] database: ${DB_FILE}`);
+  return db;
 }
 
 /** Test helper: forget the shared connection so the next getDb() starts fresh. */
 export function resetDbForTests(): void {
-  globalForDb.coyDb?.close();
-  globalForDb.coyDb = undefined;
+  globalForDb.coyDbCache?.db.close();
+  globalForDb.coyDbCache = undefined;
 }

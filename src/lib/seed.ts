@@ -11,10 +11,46 @@ type SeedProfile = {
   swipedMe?: "like" | "pass";
 };
 
-// Generated illustrated faces: placeholder images without using real people's photos.
-// The "-neutral" style is face-only (no hair or makeup), so avatars don't imply a gender.
-const avatar = (seed: string) =>
-  `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(seed)}&backgroundColor=ffd5dc,ffdfbf,d1d4f9,c0aede,b6e3f4`;
+/** One Hinge-style prompt per profile: [question, answer]. */
+export const SEED_PROMPTS: Record<string, [string, string]> = {
+  p01: ["A perfect Sunday", "Old Delhi breakfast, a secondhand bookshop, then open mic at night."],
+  p02: ["I'm weirdly good at", "Sourdough. My starter has a name and a better social life than me."],
+  p03: ["Let's debate", "Pineapple belongs on Maggi. I have data."],
+  p04: ["The way to win me over", "Say yes to a 5am trek, even if you complain the whole way up."],
+  p05: ["My simple pleasures", "Front row at a play, filter coffee after, and overanalysing every scene."],
+  p06: ["Typical weekend", "Gully cricket in the morning, F1 qualifying at night. No in-between."],
+  p07: ["I'm looking for", "Someone who'll drive 40 minutes for the right biryani without asking why."],
+  p08: ["My most irrational fear", "Demo day with no Wi-Fi."],
+  p09: ["A perfect Sunday", "Rain, adda, telebhaja and a Tagore song nobody else knows the words to."],
+  p10: ["Green flag I look for", "You ask good questions. Bonus points if you ask 'why' back."],
+  p11: ["My simple pleasures", "Finding a 1990s jacket for ₹200 at Sarojini."],
+  p12: ["Two truths and a lie", "I've played violin at a temple, I'm Radiant in Valorant, I hate filter coffee."],
+  p13: ["The way to win me over", "Stand up on the board once. That's it, you're in."],
+  p14: ["I'm looking for", "A co-founder for life. Or at least for this pitch deck."],
+  p15: ["Let's debate", "Is a hot dog a sandwich? I've written 2,000 words on it."],
+  p16: ["My simple pleasures", "A well-proportioned staircase. I'm not joking."],
+  p17: ["Typical weekend", "Snorkelling if the sea's calm, documentaries if it's not."],
+  p18: ["I'm weirdly good at", "Guessing the year of any Bollywood song from the first five seconds."],
+  p19: ["A perfect Sunday", "Kebabs in Aminabad, a sher-o-shayari evening, and a long walk home."],
+  p20: ["Green flag I look for", "You'll wait twenty minutes for the light to be just right."],
+  p21: ["My most irrational fear", "Being asked 'are you a doctor?' on a flight."],
+  p22: ["The way to win me over", "Come to a gig. Even if it's just six people and my mom."],
+  p23: ["I'm looking for", "Someone my three dogs approve of. They're strict."],
+  p24: ["Let's debate", "Light mode is a crime. Change my mind."],
+  p25: ["Typical weekend", "Chasing a story, then a long chai while I write it up."],
+  p26: ["My simple pleasures", "Poha with extra sev after a long run by the lake."],
+  p27: ["I'm weirdly good at", "Salsa. Also falling asleep in any lecture hall."],
+  p28: ["A perfect Sunday", "Sunrise boat ride on the Ganga, then a long coding session."],
+  p29: ["The way to win me over", "Know at least one Shillong band. Bonus if you've seen them live."],
+  p30: ["Two truths and a lie", "Codeforces Expert, I make great biryani, I've finished One Piece."],
+  p31: ["My simple pleasures", "Kahwa on a cold morning and a book I can't put down."],
+  p32: ["Green flag I look for", "You go quiet when you spot a bird. Same."],
+};
+
+// A plain human-silhouette placeholder served by the app itself (public/), so no
+// real people's photos are used and the demo works offline. The UI tints the
+// background per profile.
+const PLACEHOLDER_PHOTO = "/avatar-placeholder.svg";
 
 // The likers are spread through the list on purpose: the feed is ordered by
 // id, and a cluster of likers at the front would itself leak who liked you.
@@ -53,14 +89,21 @@ export const SEED_PROFILES: SeedProfile[] = [
   { id: "p32", name: "Ishaan", age: 24, location: "Dehradun", bio: "Wildlife volunteer. I have met a tiger (from far away).", interests: ["Wildlife", "Trekking", "Conservation"], swipedMe: "like" },
 ];
 
-/** Inserts the logged-in user, the mock profiles and their swipes on the user. Runs only on an empty database. */
+/**
+ * Inserts the logged-in user, the mock profiles and their swipes on the user.
+ * On a database that's already seeded, it only fills in prompts that are
+ * missing (databases created before prompts existed). Swipes are never touched.
+ */
 export function seed(db: Database.Database): void {
   const { count } = db.prepare("SELECT COUNT(*) AS count FROM profiles").get() as { count: number };
-  if (count > 0) return;
+  if (count > 0) {
+    backfillPrompts(db);
+    return;
+  }
 
   const insertProfile = db.prepare(
-    `INSERT INTO profiles (id, name, age, photo, bio, location, interests)
-     VALUES (@id, @name, @age, @photo, @bio, @location, @interests)`,
+    `INSERT INTO profiles (id, name, age, photo, bio, location, interests, prompt_question, prompt_answer)
+     VALUES (@id, @name, @age, @photo, @bio, @location, @interests, @prompt_question, @prompt_answer)`,
   );
   const insertSwipe = db.prepare(
     "INSERT INTO swipes (swiper_id, target_id, action) VALUES (?, ?, ?)",
@@ -68,12 +111,32 @@ export function seed(db: Database.Database): void {
 
   db.transaction(() => {
     insertProfile.run({
-      id: "me", name: "You", age: 22, photo: avatar("me"),
+      id: "me", name: "You", age: 22, photo: PLACEHOLDER_PHOTO,
       bio: "The logged-in user.", location: "Delhi", interests: "[]",
+      prompt_question: "", prompt_answer: "",
     });
-    for (const p of SEED_PROFILES) {
-      insertProfile.run({ ...p, photo: avatar(p.name), interests: JSON.stringify(p.interests) });
-      if (p.swipedMe) insertSwipe.run(p.id, "me", p.swipedMe);
+    for (const { swipedMe, ...p } of SEED_PROFILES) {
+      const [prompt_question, prompt_answer] = SEED_PROMPTS[p.id];
+      insertProfile.run({
+        ...p,
+        photo: PLACEHOLDER_PHOTO,
+        interests: JSON.stringify(p.interests),
+        prompt_question,
+        prompt_answer,
+      });
+      if (swipedMe) insertSwipe.run(p.id, "me", swipedMe);
+    }
+  })();
+}
+
+function backfillPrompts(db: Database.Database): void {
+  const update = db.prepare(
+    `UPDATE profiles SET prompt_question = ?, prompt_answer = ?
+      WHERE id = ? AND prompt_answer = ''`,
+  );
+  db.transaction(() => {
+    for (const [id, [question, answer]] of Object.entries(SEED_PROMPTS)) {
+      update.run(question, answer, id);
     }
   })();
 }

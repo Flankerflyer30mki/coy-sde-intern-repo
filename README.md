@@ -22,7 +22,7 @@ Open **http://localhost:3000/discover**. It's built mobile-first, so it looks be
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start the app at http://localhost:3000 |
-| `npm test` | Run the 39 backend tests |
+| `npm test` | Run the 40 backend tests |
 | `npm run db:reset` | Delete all swipes and re-seed (restart the dev server afterwards) |
 | `npm run build && npm start` | Production build |
 
@@ -77,7 +77,7 @@ The brief's exact paths (`/feed`, `/swipe`, `/matches`) work, and so do the same
 ### `GET /feed`
 Profiles the user hasn't swiped on yet.
 ```json
-{ "profiles": [ { "id": "p01", "name": "Aanya", "age": 21, "photo": "https://…", "bio": "…", "location": "Delhi University", "interests": ["Music", "Chai", "Poetry"] } ] }
+{ "profiles": [ { "id": "p01", "name": "Aanya", "age": 21, "photo": "/avatar-placeholder.svg", "bio": "…", "location": "Delhi University", "interests": ["Music", "Chai", "Poetry"], "prompt": { "question": "A perfect Sunday", "answer": "…" } } ] }
 ```
 
 ### `POST /swipe`
@@ -146,7 +146,9 @@ These rules have their own tests. For example, one test makes *every* profile li
 - **Optimistic swipes:** the card flies away instantly and the request runs in the background. If saving fails (e.g. offline), the card comes back with a "Couldn't save that swipe" message, so a swipe is never silently lost.
 - A drag counts as a swipe past **110 px or a fast flick**, as in other swipe apps. Buttons, arrow keys and drag share one animation path, and a card ignores a second swipe once it's leaving.
 - Only the top two cards are rendered.
-- Avatars are generated, **gender-neutral illustrations** (DiceBear `notionists-neutral`) instead of photos of real people. They load from DiceBear, so the demo needs an internet connection.
+- Photos are a **plain human-silhouette placeholder** served by the app itself (`public/avatar-placeholder.svg`), tinted per profile. No real people's photos are used, and the demo works offline.
+- **Card layout:** the details take the height their text needs and the photo fills the rest, so there's no empty gap on any screen size. Each profile also has a Hinge-style **prompt** ("A perfect Sunday…"), placed below the required fields so it's the one that gets squeezed on very small screens. Short screens (under 700px, e.g. iPhone SE) get tighter type and spacing.
+- **Schema upgrades are handled:** a database created before a column existed gets it added on startup and filled in, without touching swipes. In dev, a schema version bump makes the server reopen its cached connection after a hot reload.
 
 **Two things worth knowing**
 - **GET routes call `connection()`.** With Next.js 16's Cache Components, a GET route can be pre-rendered once at build time. `better-sqlite3` is synchronous, so its queries would run during the build and the feed would be frozen. `connection()` makes the routes run per request; the build output marks them `ƒ (Dynamic)`.
@@ -160,9 +162,9 @@ These rules have their own tests. For example, one test makes *every* profile li
 npm test
 ```
 
-**39 tests**, each starting from a fresh in-memory database (the persistence tests use a temporary file instead):
+**40 tests**, each starting from a fresh in-memory database (the persistence and upgrade tests use a temporary file instead):
 
-- **Logic (23):** seed data, feed filtering, matching, every privacy rule above, idempotent retries, rejected input, and persistence across reopening the database.
+- **Logic (24):** seed data, feed filtering, matching, every privacy rule above, idempotent retries, rejected input, persistence across reopening the database, and upgrading an older database.
 - **API routes (16):** status codes, error codes, malformed and `null` JSON bodies, response shapes, and the `no-store` header.
 
 Beyond unit tests, I ran the app in headless Chrome at phone size: dragging, buttons, arrow keys, the match screen, reload persistence, offline rollback, double clicks and the empty state. That pass found and fixed two real bugs: an error message that covered the Like/Pass buttons, and the dev-server reload loop described above.

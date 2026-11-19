@@ -3,7 +3,7 @@
 import { animate, motion, useMotionValue, useTransform, type PanInfo } from "motion/react";
 import { useImperativeHandle, useRef, type Ref } from "react";
 import type { Profile, SwipeAction } from "@/lib/api-client";
-import Avatar from "./Avatar";
+import Avatar, { tintFor } from "./Avatar";
 
 export type SwipeCardHandle = { swipe: (action: SwipeAction) => void };
 
@@ -60,26 +60,53 @@ export default function SwipeCard({ profile, isTop, onSwiped, ref }: Props) {
       aria-label={`${profile.name}, ${profile.age}`}
     >
       <div className="flex h-full flex-col">
-        <div className="relative flex min-h-0 flex-1 items-center justify-center bg-rose-50 p-8">
-          <Avatar
-            src={profile.photo}
-            alt=""
-            className="aspect-square max-h-full w-full max-w-64 rounded-[2rem] shadow-md"
-          />
+        {/* The details take the height their text needs; the photo fills whatever is
+            left, so there's never an empty gap. The silhouette is capped so it
+            doesn't balloon on tall screens. */}
+        <div
+          className="flex min-h-20 flex-1 items-end justify-center overflow-hidden"
+          style={{ backgroundColor: tintFor(profile.id) }}
+        >
+          <Avatar seed={profile.id} src={profile.photo} alt="" className="h-[90%] max-h-60 w-auto" />
         </div>
-        <div className="px-5 pb-5 pt-4">
-          <h2 className="text-2xl font-bold">
-            {profile.name}, <span className="font-normal">{profile.age}</span>
-          </h2>
-          <p className="mt-0.5 text-sm text-zinc-500">📍 {profile.location}</p>
-          <p className="mt-2 text-sm leading-snug text-zinc-700">{profile.bio}</p>
-          <ul className="mt-3 flex flex-wrap gap-1.5">
-            {profile.interests.map((interest) => (
-              <li key={interest} className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-brand">
-                {interest}
-              </li>
-            ))}
-          </ul>
+
+        {/* "short:" = screens under 700px tall (e.g. iPhone SE): tighter type and spacing. */}
+        <div className="flex max-h-[78%] shrink-0 flex-col gap-4 overflow-y-auto px-5 py-4 short:gap-3 short:py-3">
+          <div>
+            <h2 className="text-3xl font-bold short:text-2xl">
+              {profile.name}, <span className="font-normal">{profile.age}</span>
+            </h2>
+            <p className="mt-1 text-base text-zinc-500 short:mt-0 short:text-sm">📍 {profile.location}</p>
+          </div>
+
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">About</h3>
+            <p className="mt-1 text-base leading-relaxed text-zinc-800 short:leading-snug">{profile.bio}</p>
+          </section>
+
+          {/* Interests (required by the brief) come before the optional prompt, so on a
+              very small screen it's the prompt that gets squeezed, never a required field. */}
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Interests</h3>
+            <ul className="mt-2 flex flex-wrap gap-2 short:mt-1.5">
+              {profile.interests.map((interest) => (
+                <li key={interest} className="rounded-full bg-rose-50 px-3 py-1 text-sm font-medium text-brand">
+                  {interest}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {profile.prompt.answer && (
+            <section className="rounded-2xl bg-zinc-50 px-4 py-3 short:py-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                {profile.prompt.question}
+              </h3>
+              <p className="mt-1 text-lg font-semibold leading-snug text-zinc-900 short:text-base">
+                {profile.prompt.answer}
+              </p>
+            </section>
+          )}
         </div>
       </div>
 

@@ -25,7 +25,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="h-full bg-zinc-100">
         {/* Mobile-first: a phone-width column, centered on larger screens */}
         <div className="mx-auto flex h-full max-w-md flex-col bg-background shadow-sm">
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          {/* overflow-x-hidden: a swiped card flies off-screen sideways; without
+              clipping, it briefly widens the page and a horizontal scrollbar appears. */}
+          <main className="flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
           <TabBar />
         </div>
       </body>

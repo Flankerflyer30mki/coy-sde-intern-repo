@@ -41,9 +41,10 @@ export default function MatchModal({ profile, onClose }: Props) {
 
         <div className="relative mt-8">
           <Avatar
+            seed={profile.id}
             src={profile.photo}
             alt={profile.name}
-            className="h-40 w-40 rounded-full border-4 border-white bg-rose-50 shadow-2xl"
+            className="h-40 w-40 rounded-full border-4 border-white shadow-2xl"
           />
           <span className="absolute -bottom-2 -right-2 flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl shadow-lg" aria-hidden>
             💘

@@ -32,11 +32,27 @@ describe("seed data", () => {
     for (const p of getFeed(db, ME)) {
       expect(p.name).toBeTruthy();
       expect(p.age).toBeGreaterThanOrEqual(18);
-      expect(p.photo).toMatch(/^https:\/\//);
+      expect(p.photo).toMatch(/\.svg$/);
       expect(p.bio).toBeTruthy();
       expect(p.location).toBeTruthy();
       expect(p.interests.length).toBeGreaterThan(0);
+      expect(p.prompt.question).toBeTruthy();
+      expect(p.prompt.answer).toBeTruthy();
     }
+  });
+
+  it("upgrades a database created before prompts existed, keeping its swipes", () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "coy-")), "old.db");
+    // Build an "old" database: seeded, a swipe made, then the prompt columns removed.
+    const old = openDb(file);
+    recordSwipe(old, ME, likedMe[0], "like");
+    old.exec("ALTER TABLE profiles DROP COLUMN prompt_question; ALTER TABLE profiles DROP COLUMN prompt_answer;");
+    old.close();
+
+    const upgraded = openDb(file);
+    expect(getFeed(upgraded, ME).every((p) => p.prompt.answer !== "")).toBe(true);
+    expect(getMatches(upgraded, ME).map((m) => m.profile.id)).toEqual([likedMe[0]]);
+    upgraded.close();
   });
 
   it("includes profiles that already liked the user, so a demo can produce matches", () => {
@@ -79,7 +95,7 @@ describe("privacy: never reveal who liked the user unless it is mutual", () => {
   it("feed items expose only public profile fields", () => {
     for (const p of getFeed(db, ME)) {
       expect(Object.keys(p).sort()).toEqual(
-        ["age", "bio", "id", "interests", "location", "name", "photo"],
+        ["age", "bio", "id", "interests", "location", "name", "photo", "prompt"],
       );
     }
   });
