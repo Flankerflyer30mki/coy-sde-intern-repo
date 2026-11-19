@@ -52,7 +52,8 @@ export function openDb(file: string): DB {
   return db;
 }
 
-const DB_FILE = path.join(process.cwd(), "data", "coy.db");
+// COY_DB_FILE lets tests point the API at a throwaway database (e.g. ":memory:").
+const DB_FILE = process.env.COY_DB_FILE ?? path.join(process.cwd(), "data", "coy.db");
 
 // Reuse one connection across requests. Stored on globalThis so Next.js
 // hot-reloading in dev doesn't open a new connection on every code change.
@@ -61,4 +62,10 @@ const globalForDb = globalThis as unknown as { coyDb?: DB };
 export function getDb(): DB {
   globalForDb.coyDb ??= openDb(DB_FILE);
   return globalForDb.coyDb;
+}
+
+/** Test helper: forget the shared connection so the next getDb() starts fresh. */
+export function resetDbForTests(): void {
+  globalForDb.coyDb?.close();
+  globalForDb.coyDb = undefined;
 }
